@@ -28,7 +28,7 @@ const verifyToken = async (req, res, next) => {
   }
   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
-      console.log(err);
+      console.log(err?.message);
       return res.status(401).send({ message: "unauthorized access" });
     }
     req.user = decoded;
@@ -47,6 +47,8 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
+    const db = client.db("petLoversHubDB");
+    const userCollection = db.collection("users");
     // auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -75,6 +77,38 @@ async function run() {
       } catch (err) {
         res.status(500).send(err);
       }
+    });
+
+    // save user data in db
+    app.put("/user", async (req, res) => {
+      const user = req.body;
+      const query = { email: user?.email };
+      // check if user already exists in db
+      const isExist = await userCollection.findOne(query);
+      // if (isExist) return res.send(isExist);
+      if (isExist) {
+        if (user?.status === "Requested") {
+          // if existing user try to change his role
+          const result = await userCollection.updateOne(query, {
+            $set: { status: user?.status },
+          });
+          return res.send(result);
+        } else {
+          // if existing user login again
+          return res.send(isExist);
+        }
+      }
+
+      // save user for the first time
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          ...user,
+          timestamp: Date.now(),
+        },
+      };
+      const result = await userCollection.updateOne(query, updateDoc, options);
+      res.send(result);
     });
 
     // Send a ping to confirm a successful connection
