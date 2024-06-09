@@ -22,7 +22,7 @@ app.use(cookieParser());
 // Verify Token Middleware
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
-  console.log(token);
+  // console.log(token);
   if (!token) {
     return res.status(401).send({ message: "unauthorized access" });
   }
@@ -49,7 +49,8 @@ async function run() {
   try {
     const db = client.db("petLoversHubDB");
     const userCollection = db.collection("users");
-    // auth related api
+    const petCollection = db.collection("pets");
+    //* auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
@@ -63,7 +64,7 @@ async function run() {
         })
         .send({ success: true });
     });
-    // Logout
+    //? Logout
     app.get("/logout", async (req, res) => {
       try {
         res
@@ -79,7 +80,9 @@ async function run() {
       }
     });
 
-    // save user data in db
+    //* user related apis
+
+    //? save user data in db
     app.put("/user", async (req, res) => {
       const user = req.body;
       const query = { email: user?.email };
@@ -110,12 +113,38 @@ async function run() {
       const result = await userCollection.updateOne(query, updateDoc, options);
       res.send(result);
     });
-    // get user info by email from db
+    //? get user info by email from db
     app.get("/user/:email", async (req, res) => {
       const email = req.params.email;
       const result = await userCollection.findOne({ email });
       res.send(result);
     });
+
+    //* pet related api
+
+    //? save a pet on db
+    app.post("/pets", verifyToken, async (req, res) => {
+      const petData = req.body;
+      const result = await petCollection.insertOne(petData);
+      res.send(result);
+    });
+
+    //? get all pets from db
+    app.get('/pets', async (req, res) => {
+      const result = await petCollection.find().toArray();
+      res.send(result)
+    })
+
+    //? get all pets for a single user from db
+    app.get('/pets/:email',verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (req.params.email !== req.user.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      const filter = {'presentOwner.email': email}
+      const result = await petCollection.find(filter).toArray();
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
