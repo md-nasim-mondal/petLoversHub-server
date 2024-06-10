@@ -6,11 +6,15 @@ const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 
-const port = process.env.PORT || 9000;
+const port = process.env.PORT || 3000;
 
 // middleware
 const corsOptions = {
-  origin: ["http://localhost:5173", "http://localhost:5174"],
+  origin: [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://petlovershub-d9085.web.app",
+  ],
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -130,21 +134,50 @@ async function run() {
     });
 
     //? get all pets from db
-    app.get('/pets', async (req, res) => {
+    app.get("/pets", async (req, res) => {
       const result = await petCollection.find().toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
+
+    //? get a pet from db
+    app.get("/pet/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await petCollection.findOne(query);
+      res.send(result);
+    });
 
     //? get all pets for a single user from db
-    app.get('/pets/:email',verifyToken, async (req, res) => {
+    app.get("/pets/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
       if (req.params.email !== req.user.email) {
         return res.status(403).send({ message: "forbidden access" });
       }
-      const filter = {'presentOwner.email': email}
+      const filter = { "presentOwner.email": email };
       const result = await petCollection.find(filter).toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
+
+    // update Room Status
+    app.patch("/pet/:id", async (req, res) => {
+      const id = req.params.id;
+      const adopted = req.body.adopted;
+      // make pet adopted status true
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: { adopted: adopted },
+      };
+      const result = await petCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
+
+    //? delete a pet from db
+    app.delete("/pet/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await petCollection.deleteOne(query);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
