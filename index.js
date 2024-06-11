@@ -78,7 +78,7 @@ async function run() {
             sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
           })
           .send({ success: true });
-        console.log("Logout successful");
+        // console.log("Logout successful");
       } catch (err) {
         res.status(500).send(err);
       }
@@ -139,6 +139,42 @@ async function run() {
       res.send(result);
     });
 
+    // Todo: Have a problem infinite scrolling problems
+    //? get all pets which is available for adopting from db
+    app.get("/available-pets", async (req, res) => {
+      const { page = 1, search = "", category = null } = req.query;
+      const pageSize = 6;
+      const query = {
+        adopted: false,
+        $or: [
+          { petName: new RegExp(search, "i") },
+          { petCategory: new RegExp(search, "i") },
+        ],
+      };
+      if (category) {
+        query.petCategory = category;
+      }
+      const options = { sort: { createdAt: -1 } };
+
+      try {
+        const pets = await petCollection
+          .find(query, options)
+          .skip((page - 1) * pageSize)
+          .limit(pageSize)
+          .toArray();
+
+        const totalPets = await petCollection.countDocuments(query);
+        const hasNextPage = page * pageSize < totalPets;
+
+        res.json({
+          pets,
+          hasNextPage,
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
     //? get a pet from db
     app.get("/pet/:id", async (req, res) => {
       const id = req.params.id;
@@ -158,7 +194,7 @@ async function run() {
       res.send(result);
     });
 
-    // update Room Status
+    // update pet adopted Status
     app.patch("/pet/:id", async (req, res) => {
       const id = req.params.id;
       const adopted = req.body.adopted;
