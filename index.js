@@ -139,39 +139,33 @@ async function run() {
       res.send(result);
     });
 
-    // Todo: Have a problem infinite scrolling problems
-    //? get all pets which is available for adopting from db
+    // ? get all pets which is available for adopting from db
     app.get("/available-pets", async (req, res) => {
-      const { page = 1, search = "", category = null } = req.query;
-      const pageSize = 6;
+      const { search = "", category = "", page = 0, limit = 3 } = req.query;
+
       const query = {
         adopted: false,
-        $or: [
-          { petName: new RegExp(search, "i") },
-          { petCategory: new RegExp(search, "i") },
-        ],
+        petName: { $regex: search, $options: "i" },
+        ...(category && { petCategory: category }),
       };
-      if (category) {
-        query.petCategory = category;
-      }
-      const options = { sort: { createdAt: -1 } };
+      const options = {
+        sort: { createdAt: -1 },
+        skip: parseInt(page) * parseInt(limit),
+        limit: parseInt(limit),
+      };
 
       try {
         const pets = await petCollection
-          .find(query, options)
-          .skip((page - 1) * pageSize)
-          .limit(pageSize)
-          .toArray();
-
-        const totalPets = await petCollection.countDocuments(query);
-        const hasNextPage = page * pageSize < totalPets;
-
-        res.json({
-          pets,
-          hasNextPage,
-        });
+          .find(query)
+          .skip(options.skip)
+          .limit(options.limit)
+          .sort(options.sort)
+          .toArray(); // Log the fetched pets
+        const nextPage = pets.length < limit ? null : parseInt(page) + 1;
+        res.json({ pets, nextPage });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error("Error fetching pets:", error);
+        res.status(500).json({ error: "Internal Server Error" });
       }
     });
 
