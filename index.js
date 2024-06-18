@@ -201,6 +201,18 @@ async function run() {
       res.send(result);
     });
 
+    // update a pet by id
+    app.put("/pet/:id",verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const petData = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: petData,
+      }
+      const result = await petCollection.updateOne(query, updateDoc)
+      res.send(result)
+    })
+
     //? delete a pet from db
     app.delete("/pet/:id", async (req, res) => {
       const id = req.params.id;
