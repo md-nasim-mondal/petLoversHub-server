@@ -84,6 +84,16 @@ async function run() {
       }
     });
 
+    // verify admin middleware
+    const verifyAdmin = async (req, res, next) => {
+      const user = req.user;
+      const query = { email: user?.email };
+      const result = await userCollection.findOne(query);
+      if (!result || result?.role !== "admin")
+        return res.status(401).send({ message: "unauthorized access!!" });
+      next();
+    };
+
     //* user related apis
 
     //? save user data in db
@@ -121,6 +131,25 @@ async function run() {
     app.get("/user/:email", async (req, res) => {
       const email = req.params.email;
       const result = await userCollection.findOne({ email });
+      res.send(result);
+    });
+    // get all users from db
+    app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
+      const result = await userCollection.find().toArray();
+      res.send(result);
+    });
+    // update a user role
+    app.patch("/users/update/:email", async (req, res) => {
+      const email = req.params.email;
+      const userRole = req.body;
+      const query = { email };
+      const updateDoc = {
+        $set: {
+          ...userRole,
+          timestamp: Date.now(),
+        },
+      };
+      const result = await userCollection.updateOne(query, updateDoc);
       res.send(result);
     });
 
@@ -202,16 +231,16 @@ async function run() {
     });
 
     // update a pet by id
-    app.put("/pet/:id",verifyToken, async (req, res) => {
+    app.put("/pet/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const petData = req.body;
       const query = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: petData,
-      }
-      const result = await petCollection.updateOne(query, updateDoc)
-      res.send(result)
-    })
+      };
+      const result = await petCollection.updateOne(query, updateDoc);
+      res.send(result);
+    });
 
     //? delete a pet from db
     app.delete("/pet/:id", async (req, res) => {
