@@ -54,6 +54,7 @@ async function run() {
     const db = client.db("petLoversHubDB");
     const userCollection = db.collection("users");
     const petCollection = db.collection("pets");
+    const donationCampaignCollection = db.collection("donationCampaigns");
     //* auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -139,7 +140,7 @@ async function run() {
       res.send(result);
     });
     // update a user role
-    app.patch("/users/update/:email", async (req, res) => {
+    app.patch("/users/update/:email", verifyToken, verifyAdmin, async (req, res) => {
       const email = req.params.email;
       const userRole = req.body;
       const query = { email };
@@ -163,7 +164,7 @@ async function run() {
     });
 
     //? get all pets from db
-    app.get("/pets", async (req, res) => {
+    app.get("/pets", verifyToken, verifyAdmin, async (req, res) => {
       const result = await petCollection.find().toArray();
       res.send(result);
     });
@@ -218,9 +219,9 @@ async function run() {
     });
 
     // update pet adopted Status
-    app.patch("/pet/:id", async (req, res) => {
+    app.patch("/pet/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
-      const adopted = req.body.adopted;
+      const {adopted} = req.body;
       // make pet adopted status true
       const query = { _id: new ObjectId(id) };
       const updateDoc = {
@@ -243,12 +244,21 @@ async function run() {
     });
 
     //? delete a pet from db
-    app.delete("/pet/:id", async (req, res) => {
+    app.delete("/pet/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await petCollection.deleteOne(query);
       res.send(result);
     });
+
+    //* Donation Campaign Related apis
+
+    //? save new created campaign in db
+    app.post('/donation-campaigns', verifyToken, async (req, res) => {
+      const campaignData = req.body;
+      const result = await donationCampaignCollection.insertOne(campaignData);
+      res.send(result);
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
