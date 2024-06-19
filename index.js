@@ -54,6 +54,7 @@ async function run() {
     const db = client.db("petLoversHubDB");
     const userCollection = db.collection("users");
     const petCollection = db.collection("pets");
+    const adoptingRequestPetCollection = db.collection("adoptingRequestPets");
     const donationCampaignCollection = db.collection("donationCampaigns");
     //* auth related api
     app.post("/jwt", async (req, res) => {
@@ -258,6 +259,22 @@ async function run() {
       res.send(result);
     });
 
+    //* adopting request pets related apis
+
+    app.post("/adopting-request-pets", verifyToken, async (req, res) => {
+      const email = req.user.email;
+      const adoptingData = req.body;
+      const petId = adoptingData.petId;
+      const query = { petId: petId, "requester.email": email };
+      const isExist = await adoptingRequestPetCollection.findOne(query);
+      if (isExist)
+        return res
+          .status(403)
+          .send({ message: "You already requested for adopting this pet" });
+      const result = await adoptingRequestPetCollection.insertOne(adoptingData);
+      res.send(result);
+    });
+
     //* Donation Campaign Related apis
 
     //? save new created campaign in db
@@ -290,7 +307,7 @@ async function run() {
     });
 
     //? get a single campaign by a id
-    app.get("/campaign/:id", async (req, res) => {
+    app.get("/campaign/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await donationCampaignCollection.findOne(query);
