@@ -185,6 +185,7 @@ async function run() {
       const query = {
         adopted: false,
         petName: { $regex: search, $options: "i" },
+        petCategory: { $regex: search, $options: "i" },
         ...(category && { petCategory: category }),
       };
       const options = {
@@ -261,6 +262,7 @@ async function run() {
 
     //* adopting request pets related apis
 
+    //? save pet adopting request
     app.post("/adopting-request-pets", verifyToken, async (req, res) => {
       const email = req.user.email;
       const adoptingData = req.body;
@@ -285,15 +287,28 @@ async function run() {
     });
 
     //? get all created campaigns
-    app.get(
-      "/donation-campaigns",
-      verifyToken,
-      verifyAdmin,
-      async (req, res) => {
-        const result = await donationCampaignCollection.find().toArray();
-        res.send(result);
+    app.get("/donation-campaigns", async (req, res) => {
+      const { page = 0, limit = 3 } = req.query;
+      const options = {
+        sort: { requestedAt: -1 },
+        skip: parseInt(page) * parseInt(limit),
+        limit: parseInt(limit),
+      };
+
+      try {
+        const campaigns = await donationCampaignCollection
+          .find()
+          .skip(options.skip)
+          .limit(options.limit)
+          .sort(options.sort)
+          .toArray(); // Log the fetched campaigns
+        const nextPage = campaigns.length < limit ? null : parseInt(page) + 1;
+        res.json({ campaigns, nextPage });
+      } catch (error) {
+        console.error("Error fetching pets:", error);
+        res.status(500).json({ error: "Internal Server Error" });
       }
-    );
+    });
 
     //? get all created campaigns by for a user
     app.get("/donation-campaigns/:email", verifyToken, async (req, res) => {
