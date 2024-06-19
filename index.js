@@ -85,7 +85,7 @@ async function run() {
       }
     });
 
-    // verify admin middleware
+    //? verify admin middleware
     const verifyAdmin = async (req, res, next) => {
       const user = req.user;
       const query = { email: user?.email };
@@ -129,30 +129,38 @@ async function run() {
       res.send(result);
     });
     //? get user info by email from db
-    app.get("/user/:email", async (req, res) => {
+    app.get("/user/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
+      if (email !== req.user.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const result = await userCollection.findOne({ email });
       res.send(result);
     });
-    // get all users from db
+    //? get all users from db
     app.get("/users", verifyToken, verifyAdmin, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
-    // update a user role
-    app.patch("/users/update/:email", verifyToken, verifyAdmin, async (req, res) => {
-      const email = req.params.email;
-      const userRole = req.body;
-      const query = { email };
-      const updateDoc = {
-        $set: {
-          ...userRole,
-          timestamp: Date.now(),
-        },
-      };
-      const result = await userCollection.updateOne(query, updateDoc);
-      res.send(result);
-    });
+    //? update a user role
+    app.patch(
+      "/users/update/:email",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const email = req.params.email;
+        const userRole = req.body;
+        const query = { email };
+        const updateDoc = {
+          $set: {
+            ...userRole,
+            timestamp: Date.now(),
+          },
+        };
+        const result = await userCollection.updateOne(query, updateDoc);
+        res.send(result);
+      }
+    );
 
     //* pet related api
 
@@ -210,7 +218,7 @@ async function run() {
     //? get all pets for a single user from db
     app.get("/pets/:email", verifyToken, async (req, res) => {
       const email = req.params.email;
-      if (req.params.email !== req.user.email) {
+      if (email !== req.user.email) {
         return res.status(403).send({ message: "forbidden access" });
       }
       const filter = { "presentOwner.email": email };
@@ -218,11 +226,10 @@ async function run() {
       res.send(result);
     });
 
-    // update pet adopted Status
+    //? update pet adopted Status
     app.patch("/pet/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
-      const {adopted} = req.body;
-      // make pet adopted status true
+      const { adopted } = req.body;
       const query = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: { adopted: adopted },
@@ -231,7 +238,7 @@ async function run() {
       res.send(result);
     });
 
-    // update a pet by id
+    //? update a pet by id
     app.put("/pet/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const petData = req.body;
@@ -254,11 +261,71 @@ async function run() {
     //* Donation Campaign Related apis
 
     //? save new created campaign in db
-    app.post('/donation-campaigns', verifyToken, async (req, res) => {
+    app.post("/donation-campaigns", verifyToken, async (req, res) => {
       const campaignData = req.body;
       const result = await donationCampaignCollection.insertOne(campaignData);
       res.send(result);
-    })
+    });
+
+    //? get all created campaigns
+    app.get(
+      "/donation-campaigns",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const result = await donationCampaignCollection.find().toArray();
+        res.send(result);
+      }
+    );
+
+    //? get all created campaigns by for a user
+    app.get("/donation-campaigns/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.user.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      const query = { "creator.email": email };
+      const result = await donationCampaignCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //? get a single campaign by a id
+    app.get("/campaign/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await donationCampaignCollection.findOne(query);
+      res.send(result);
+    });
+
+    //? update campaign Status
+    app.patch("/updateStatus-campaign/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const { pauseStatus } = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: { pauseStatus: pauseStatus },
+      };
+      const result = await donationCampaignCollection.updateOne(
+        query,
+        updateDoc
+      );
+      res.send(result);
+    });
+
+    //? update campaign Data
+    app.put("/update-campaign/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const campaignData = req.body;
+      const query = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: campaignData,
+      };
+      const result = await donationCampaignCollection.updateOne(
+        query,
+        updateDoc
+      );
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
