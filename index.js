@@ -297,6 +297,25 @@ async function run() {
       res.send(result);
     });
 
+    //? get all adopting request pets for a for a single user
+    app.get("/adopting-request-pets/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.user.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      const filter = { "presentOwner.email": email };
+      const result = await adoptingRequestPetCollection.find(filter).toArray();
+      res.send(result);
+    })
+
+    //? clear the db after rejected or accepted 
+    app.delete("/adopting-request-pet/:id", verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await adoptingRequestPetCollection.deleteOne(filter);
+      res.send(result)
+    })
+
     //* Donation Campaign Related apis
 
     //? save new created campaign in db
