@@ -198,6 +198,18 @@ async function run() {
       res.send(result);
     });
 
+    //? get all available pets
+    app.get("/adoptable-pets", async (req, res) => {
+      const query = {
+        adopted: false,
+      };
+      const result = await petCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(result);
+    });
+
     // ? get all pets which is available for adopting from db
     app.get("/available-pets", async (req, res) => {
       const { search = "", category = "", page = 0, limit = 3 } = req.query;
@@ -306,15 +318,15 @@ async function run() {
       const filter = { "presentOwner.email": email };
       const result = await adoptingRequestPetCollection.find(filter).toArray();
       res.send(result);
-    })
+    });
 
-    //? clear the db after rejected or accepted 
+    //? clear the db after rejected or accepted
     app.delete("/adopting-request-pet/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
       const result = await adoptingRequestPetCollection.deleteOne(filter);
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     //* Donation Campaign Related apis
 
@@ -328,8 +340,8 @@ async function run() {
     //? get all created donations campaigns
     app.get("/donationCampaigns", async (req, res) => {
       const result = await donationCampaignCollection.find().toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     //? get all created campaigns
     app.get("/donation-campaigns", async (req, res) => {
@@ -426,12 +438,17 @@ async function run() {
     );
 
     //? delete a campaign by id
-    app.delete('/delete-campaign/:id', verifyToken, verifyAdmin, async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
-      const result = await donationCampaignCollection.deleteOne(query);
-      res.send(result)
-    })
+    app.delete(
+      "/delete-campaign/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res) => {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const result = await donationCampaignCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     //* Donation payment related apis
 
