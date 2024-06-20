@@ -325,6 +325,12 @@ async function run() {
       res.send(result);
     });
 
+    //? get all created donations campaigns
+    app.get("/donationCampaigns", async (req, res) => {
+      const result = await donationCampaignCollection.find().toArray();
+      res.send(result)
+    })
+
     //? get all created campaigns
     app.get("/donation-campaigns", async (req, res) => {
       const { page = 0, limit = 3 } = req.query;
@@ -418,6 +424,14 @@ async function run() {
         res.send(result);
       }
     );
+
+    //? delete a campaign by id
+    app.delete('/delete-campaign/:id', verifyToken, verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await donationCampaignCollection.deleteOne(query);
+      res.send(result)
+    })
 
     //* Donation payment related apis
 
