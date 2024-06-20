@@ -5,6 +5,7 @@ const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const port = process.env.PORT || 3000;
 
@@ -56,6 +57,7 @@ async function run() {
     const petCollection = db.collection("pets");
     const adoptingRequestPetCollection = db.collection("adoptingRequestPets");
     const donationCampaignCollection = db.collection("donationCampaigns");
+    const donateInfoCollection = db.collection("donatesInfo");
     //* auth related api
     app.post("/jwt", async (req, res) => {
       const user = req.body;
@@ -95,6 +97,24 @@ async function run() {
         return res.status(401).send({ message: "unauthorized access!!" });
       next();
     };
+
+    // create-payment-intent
+    app.post("/create-payment-intent", verifyToken, async (req, res) => {
+      const donateAmount = req.body.donateAmount;
+      const donateAmountInCent = parseFloat(donateAmount) * 100;
+      if (!donateAmount || donateAmountInCent < 1) return;
+      // generate clientSecret
+      const { client_secret } = await stripe.paymentIntents.create({
+        amount: donateAmountInCent,
+        currency: "usd",
+        // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+      // send client secret as response
+      res.send({ clientSecret: client_secret });
+    });
 
     //* user related apis
 
@@ -356,6 +376,36 @@ async function run() {
         query,
         updateDoc
       );
+      res.send(result);
+    });
+
+    //? update campaign with Donators Data
+    app.put(
+      "/update-donateInfo-campaign/:id",
+      verifyToken,
+      async (req, res) => {
+        const id = req.params.id;
+        const updateCampaignData = req.body;
+        const query = { _id: new ObjectId(id) };
+        const option = { upsert: true };
+        const updateDoc = {
+          $set: updateCampaignData,
+        };
+        const result = await donationCampaignCollection.updateOne(
+          query,
+          updateDoc,
+          option
+        );
+        res.send(result);
+      }
+    );
+
+    //* Donation payment related apis
+
+    //? save a new donated information
+    app.post("/donates", verifyToken, async (req, res) => {
+      const donateData = req.body;
+      const result = await donateInfoCollection.insertOne(donateData);
       res.send(result);
     });
 
