@@ -339,8 +339,23 @@ async function run() {
 
     //? get all created donations campaigns
     app.get("/donationCampaigns", async (req, res) => {
-      const result = await donationCampaignCollection.find().toArray();
-      res.send(result);
+      const limit = parseInt(req?.query?.limit);
+      const { id } = req.query;
+      const filter = {};
+      if (id) {
+        filter._id = { $ne: new ObjectId(id) }; // Assuming id is of type ObjectId
+      }
+      if (limit && limit) {
+        const result = await donationCampaignCollection
+          .find(filter)
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .toArray();
+        res.send(result);
+      } else {
+        const result = await donationCampaignCollection.find().toArray();
+        res.send(result);
+      }
     });
 
     //? get all created campaigns
