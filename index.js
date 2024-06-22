@@ -481,52 +481,55 @@ async function run() {
       res.send(result);
     });
 
+    //? handle refund data
     app.put("/refund-payment", verifyToken, async (req, res) => {
       const updateData = req.body;
-      const campaignId = updateData.campaignId;
-      const donateInfoId = updateData.donateInfoId;
+      const _id = updateData?._id;
+      const query1 = { _id: new ObjectId(_id) };
+      const id = updateData?.campaignId;
+      const query2 = { _id: new ObjectId(id) };
 
-      const campaignQuery = { _id: new ObjectId(campaignId) };
-      const donateInfoQuery = { _id: new ObjectId(donateInfoId) };
+      const campaign = await donationCampaignCollection.findOne(query2);
+
+      let donators = campaign?.donators || [];
+      const transactionId = updateData?.donator?.transactionId || "";
+
+      if (transactionId) {
+        donators = donators.filter(
+          (donator) => donator.transactionId !== transactionId
+        );
+      }
+
+      const donatedAmount = parseFloat(
+        parseFloat(campaign?.donatedAmount) -
+          parseFloat(updateData?.donator?.donateAmount)
+      );
 
       const updateCampaignDoc = {
         $set: {
-          donators: updateData.donators,
-          donatedAmount: updateData.donatedAmount,
+          donators: donators,
+          donatedAmount: donatedAmount,
         },
       };
 
+      const updateCampaign = await donationCampaignCollection.updateOne(
+        query2,
+        updateCampaignDoc
+      );
       const updatePaymentInfoDoc = {
         $set: {
           refund: true,
         },
       };
+      const updatePaymentInfo = await donateInfoCollection.updateOne(
+        query1,
+        updatePaymentInfoDoc
+      );
 
-      try {
-        const updateCampaign = await donationCampaignCollection.updateOne(
-          campaignQuery,
-          updateCampaignDoc
-        );
-        const updatePaymentInfo = await donateInfoCollection.updateOne(
-          donateInfoQuery,
-          updatePaymentInfoDoc
-        );
+      const result = { updateCampaign, updatePaymentInfo };
 
-        if (
-          updateCampaign.modifiedCount === 1 &&
-          updatePaymentInfo.modifiedCount === 1
-        ) {
-          res.send({ success: true, message: "Refund processed successfully" });
-        } else {
-          res
-            .status(500)
-            .send({ success: false, message: "Failed to process refund" });
-        }
-      } catch (error) {
-        res.status(500).send({ success: false, message: error.message });
-      }
+      res.send(result);
     });
-
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
