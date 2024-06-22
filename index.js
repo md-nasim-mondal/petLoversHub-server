@@ -15,6 +15,7 @@ const corsOptions = {
     "http://localhost:5173",
     "http://localhost:5174",
     "https://petlovershub-d9085.web.app",
+    "https://pet-lovers-hub.netlify.app",
   ],
   credentials: true,
   optionSuccessStatus: 200,
@@ -473,9 +474,62 @@ async function run() {
       const result = await donateInfoCollection.insertOne(donateData);
       res.send(result);
     });
+    app.get("/donates/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const query = { "donator.email": email };
+      const result = await donateInfoCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.put("/refund-payment", verifyToken, async (req, res) => {
+      const updateData = req.body;
+      const campaignId = updateData.campaignId;
+      const donateInfoId = updateData.donateInfoId;
+
+      const campaignQuery = { _id: new ObjectId(campaignId) };
+      const donateInfoQuery = { _id: new ObjectId(donateInfoId) };
+
+      const updateCampaignDoc = {
+        $set: {
+          donators: updateData.donators,
+          donatedAmount: updateData.donatedAmount,
+        },
+      };
+
+      const updatePaymentInfoDoc = {
+        $set: {
+          refund: true,
+        },
+      };
+
+      try {
+        const updateCampaign = await donationCampaignCollection.updateOne(
+          campaignQuery,
+          updateCampaignDoc
+        );
+        const updatePaymentInfo = await donateInfoCollection.updateOne(
+          donateInfoQuery,
+          updatePaymentInfoDoc
+        );
+
+        if (
+          updateCampaign.modifiedCount === 1 &&
+          updatePaymentInfo.modifiedCount === 1
+        ) {
+          res.send({ success: true, message: "Refund processed successfully" });
+        } else {
+          res
+            .status(500)
+            .send({ success: false, message: "Failed to process refund" });
+        }
+      } catch (error) {
+        res.status(500).send({ success: false, message: error.message });
+      }
+    });
+
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
