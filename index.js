@@ -342,7 +342,9 @@ async function run() {
     app.get("/donationCampaigns", async (req, res) => {
       const limit = parseInt(req?.query?.limit);
       const { id } = req.query;
-      const filter = {};
+      const filter = {
+        pauseStatus: false,
+      };
       if (id) {
         filter._id = { $ne: new ObjectId(id) }; // Assuming id is of type ObjectId
       }
