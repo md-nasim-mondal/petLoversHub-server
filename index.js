@@ -7,7 +7,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 5000;
 
 // middleware
 const corsOptions = {
@@ -200,40 +200,41 @@ async function run() {
     });
 
     //? get all available pets
-    app.get("/adoptable-pets", async (req, res) => {
-      const query = {
-        adopted: false,
-      };
-      const result = await petCollection
-        .find(query)
-        .sort({ createdAt: -1 })
-        .toArray();
-      res.send(result);
-    });
-
-    // ? get all pets which is available for adopting from db
     app.get("/available-pets", async (req, res) => {
       const { search = "", category = "", page = 0, limit = 3 } = req.query;
-
+    
+      // Base query
       const query = {
         adopted: false,
-        petName: { $regex: search, $options: "i" },
-        petCategory: { $regex: search, $options: "i" },
-        ...(category && { petCategory: category }),
       };
+    
+      // Apply search to both petName and petCategory
+      if (search) {
+        query.$or = [
+          { petName: { $regex: search, $options: "i" } },
+          { petCategory: { $regex: search, $options: "i" } },
+        ];
+      }
+    
+      // If a category is selected, apply it as an exact match
+      if (category) {
+        query.petCategory = category;
+      }
+    
       const options = {
         sort: { createdAt: -1 },
         skip: parseInt(page) * parseInt(limit),
         limit: parseInt(limit),
       };
-
+    
       try {
         const pets = await petCollection
           .find(query)
           .skip(options.skip)
           .limit(options.limit)
           .sort(options.sort)
-          .toArray(); // Log the fetched pets
+          .toArray();
+    
         const nextPage = pets.length < limit ? null : parseInt(page) + 1;
         res.json({ pets, nextPage });
       } catch (error) {
@@ -241,6 +242,7 @@ async function run() {
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
+    
 
     //? get a pet from db
     app.get("/pet/:id", async (req, res) => {
