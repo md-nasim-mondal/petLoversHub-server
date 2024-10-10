@@ -199,6 +199,18 @@ async function run() {
       res.send(result);
     });
 
+    //? get all adoptable pets
+    app.get("/adoptable-pets", async (req, res) => {
+      const query = {
+        adopted: false,
+      };
+      const result = await petCollection
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
+      res.send(result);
+    });
+
     //? get all available pets
     app.get("/available-pets", async (req, res) => {
       const { search = "", category = "", page = 0, limit = 3 } = req.query;
