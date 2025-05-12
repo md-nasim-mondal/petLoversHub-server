@@ -214,12 +214,12 @@ async function run() {
     //? get all available pets
     app.get("/available-pets", async (req, res) => {
       const { search = "", category = "", page = 0, limit = 3 } = req.query;
-    
+
       // Base query
       const query = {
         adopted: false,
       };
-    
+
       // Apply search to both petName and petCategory
       if (search) {
         query.$or = [
@@ -227,18 +227,18 @@ async function run() {
           { petCategory: { $regex: search, $options: "i" } },
         ];
       }
-    
+
       // If a category is selected, apply it as an exact match
       if (category) {
         query.petCategory = category;
       }
-    
+
       const options = {
         sort: { createdAt: -1 },
         skip: parseInt(page) * parseInt(limit),
         limit: parseInt(limit),
       };
-    
+
       try {
         const pets = await petCollection
           .find(query)
@@ -246,7 +246,7 @@ async function run() {
           .limit(options.limit)
           .sort(options.sort)
           .toArray();
-    
+
         const nextPage = pets.length < limit ? null : parseInt(page) + 1;
         res.json({ pets, nextPage });
       } catch (error) {
@@ -254,7 +254,6 @@ async function run() {
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
-    
 
     //? get a pet from db
     app.get("/pet/:id", async (req, res) => {
@@ -379,7 +378,7 @@ async function run() {
     app.get("/donation-campaigns", async (req, res) => {
       const { page = 0, limit = 3 } = req.query;
       const options = {
-        sort: { requestedAt: -1 },
+        sort: { createdAt: -1 },
         skip: parseInt(page) * parseInt(limit),
         limit: parseInt(limit),
       };
